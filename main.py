@@ -16,27 +16,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 換成輕量口袋版且穩定的模型 u2netp ---
-print("正在初始化穩定版模型 (u2netp)...")
-session = new_session("u2netp") 
+# 💡 關鍵改變：先把大腦設為「空」，不要一開始就下載
+ai_session = None
 
 @app.post("/remove-bg/")
 async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(0.5)):
+    global ai_session # 宣告要使用外面的變數
+    
     try:
+        # 💡 只有在「第一次有人傳圖片來」的時候，才去下載大腦
+        if ai_session is None:
+            print("首次去背：正在載入 AI 模型 (u2netp)...請稍候")
+            ai_session = new_session("u2netp")
+            
         image_data = await file.read()
         input_image = Image.open(io.BytesIO(image_data))
-        
-        # 為了防止記憶體爆炸，如果圖片太大，我們先稍微縮小它（選配）
-        # if input_image.width > 2000:
-        #     input_image.thumbnail((1500, 1500))
 
-        print(f"正在執行穩定去背運算...")
+        print("正在執行去背運算...")
         
-        # --- 核心修改：關閉 alpha_matting 以節省記憶體 ---
         output_image = remove(
             input_image,
-            session=session,
-            alpha_matting=False  # 👈 關閉這個就不會噴 1.86GB 的錯誤了
+            session=ai_session, # 使用剛才準備好的大腦
+            alpha_matting=False
         )
         
         img_byte_arr = io.BytesIO()
@@ -50,4 +51,7 @@ async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(
         return Response(content=str(e), status_code=500)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    # 讓 Render 動態決定門牌號碼
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
