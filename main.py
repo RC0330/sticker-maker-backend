@@ -16,9 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 換成輕量且穩定的模型 u2net ---
-print("正在初始化穩定版模型 (u2net)...")
-session = new_session("u2net") 
+# --- 換成輕量口袋版且穩定的模型 u2netp ---
+print("正在初始化穩定版模型 (u2netp)...")
+session = new_session("u2netp") 
 
 @app.post("/remove-bg/")
 async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(0.5)):
