@@ -9,11 +9,12 @@ import os
 
 app = FastAPI()
 
+# 💡 修正 CORS：將 allow_credentials 改為 False，避免 Chrome 嚴格阻擋
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"], 
+    allow_credentials=False, 
+    allow_methods=["*"], 
     allow_headers=["*"],
 )
 
@@ -31,13 +32,11 @@ async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(
         image_data = await file.read()
         input_image = Image.open(io.BytesIO(image_data))
 
-        # 🌟🌟🌟 新增：防爆縮圖機制 🌟🌟🌟
-        # 設定最大邊長為 800 像素 (對 LINE 貼圖來說非常夠用，且絕對不會撐爆記憶體)
-        max_size = 800 
+        # 💡 加強防爆：將圖片最大邊長縮小至 500 像素，確保絕對不爆記憶體
+        max_size = 500 
         if input_image.width > max_size or input_image.height > max_size:
             input_image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-            print(f"圖片太大，已自動等比例縮小至: {input_image.size} 以防止主機當機")
-        # 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟
+            print(f"圖片已自動等比例縮小至: {input_image.size}")
 
         print("正在執行去背運算...")
         
