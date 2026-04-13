@@ -9,7 +9,6 @@ import os
 
 app = FastAPI()
 
-# 💡 修正 CORS：將 allow_credentials 改為 False，避免 Chrome 嚴格阻擋
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -20,8 +19,9 @@ app.add_middleware(
 
 ai_session = None
 
+# 🌟 終極關鍵：移除了 async，讓超耗腦力的去背工作在「背景替身」執行，絕不卡死伺服器
 @app.post("/remove-bg/")
-async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(0.5)):
+def remove_bg(file: UploadFile = File(...), post_processing: float = Form(0.5)):
     global ai_session 
     
     try:
@@ -29,14 +29,15 @@ async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(
             print("首次去背：正在載入 AI 模型 (u2netp)...請稍候")
             ai_session = new_session("u2netp")
             
-        image_data = await file.read()
+        # 配合移除 async，讀取檔案的方式改為同步讀取
+        image_data = file.file.read() 
         input_image = Image.open(io.BytesIO(image_data))
 
-        # 💡 加強防爆：將圖片最大邊長縮小至 500 像素，確保絕對不爆記憶體
-        max_size = 500 
+        # 終極防爆：最大邊長 400 像素，保證 Render 免費主機絕對吃得消
+        max_size = 400 
         if input_image.width > max_size or input_image.height > max_size:
             input_image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-            print(f"圖片已自動等比例縮小至: {input_image.size}")
+            print(f"圖片已自動縮小至: {input_image.size} 以防止主機當機")
 
         print("正在執行去背運算...")
         
