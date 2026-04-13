@@ -5,26 +5,28 @@ from rembg import remove, new_session
 from PIL import Image
 import io
 import uvicorn
+import os
 
 app = FastAPI()
 
+# 💡 強化版的 CORS 設定：特別加入了 "OPTIONS"，讓 iPhone 的預檢連線暢通無阻
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"], 
     allow_headers=["*"],
 )
 
-# 💡 關鍵改變：先把大腦設為「空」，不要一開始就下載
+# 💡 保持延遲載入：先把大腦設為「空」，避免 Render 一開機就因為下載模型而超時
 ai_session = None
 
 @app.post("/remove-bg/")
 async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(0.5)):
-    global ai_session # 宣告要使用外面的變數
+    global ai_session 
     
     try:
-        # 💡 只有在「第一次有人傳圖片來」的時候，才去下載大腦
+        # 只有在「第一次有人傳圖片來」的時候，才去載入 u2netp 口袋版大腦
         if ai_session is None:
             print("首次去背：正在載入 AI 模型 (u2netp)...請稍候")
             ai_session = new_session("u2netp")
@@ -36,7 +38,7 @@ async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(
         
         output_image = remove(
             input_image,
-            session=ai_session, # 使用剛才準備好的大腦
+            session=ai_session,
             alpha_matting=False
         )
         
@@ -51,7 +53,6 @@ async def remove_bg(file: UploadFile = File(...), post_processing: float = Form(
         return Response(content=str(e), status_code=500)
 
 if __name__ == "__main__":
-    import os
-    # 讓 Render 動態決定門牌號碼
+    # 讓 Render 動態決定伺服器 Port
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
